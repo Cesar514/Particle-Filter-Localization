@@ -18,7 +18,7 @@ class PFLocaliser(PFLocaliserBase):
 
         # ----- Assigns an initial number of cloud points
         self.CLOUD_POINTS = 400
-        self.TOP_WEIGHT_PERCENTAGE = 0.95
+        self.TOP_WEIGHT_PERCENTAGE = 0.99
         
         super(PFLocaliser, self).__init__()
         
@@ -38,49 +38,40 @@ class PFLocaliser(PFLocaliserBase):
 
     def euclidean_function(self, particle):
         euclideanDistance = math.sqrt(math.pow(particle.position.x - self.estimatedpose.pose.pose.position.x, 2) + math.pow(particle.position.y - self.estimatedpose.pose.pose.position.y,2))
-        # euclideanDistance = math.sqrt(math.pow(particle.position.x, 2) + math.pow(particle.position.y,2))
         return euclideanDistance
 
 
     def particle_clustering(self, particlePoses):
-        """
-        Takes the heaviest cluster of particles, and everything that is near it, 
-        to recalculate particles and get an estimated pose
-        of particles that are within 1 standard deviation rate.
         
-        """
+        euclideanDistances = []
 
+        for pose in particlePoses:
+            euclideanDistances.append(self.euclidean_function(pose))
         
-        euclideanDistances = [] #Initializes a new array to store euclidean distances.
+        meanDistance = mean(euclideanDistances)
+        standardDeviation = stdev(euclideanDistances)
 
-        for pose in particlePoses: #Takes each individual particle in the particle poses array
-            euclideanDistances.append(self.euclidean_function(pose)) #sends each pose to the euclidean function to determine each particle's euclidean distance
-                                                                     #and adds to array
-        
-        meanDistance = mean(euclideanDistances) #Calculates the mean of the distances to use as the center of gaussian
-        standardDeviation = stdev(euclideanDistances) #Determines the standard deviation from the mean
-
-        if standardDeviation > 3: #If standard deviation its greater than this, don't consider the particle
-            remainingParticlesPoses = [] #creates an array for the new particles
-            for pose in particlePoses: # for each particle inside the array of particles
-                singleEuclideanDistance = self.euclidean_function(pose) #sends the particle to get its euclidian distance
-                if meanDistance - standardDeviation < singleEuclideanDistance < meanDistance + standardDeviation: # mean - sigma < mean < mean + sigma #boundary of gaussian 
-                    remainingParticlesPoses.append(pose) #appends the particles to the array that fulfill this condition.
-            return self.particle_clustering(remainingParticlesPoses) #recursive array with new particles, until it returns the robotEstimatedPose
+        if standardDeviation > 3:
+            remainingParticlesPoses = []
+            for pose in particlePoses:
+                singleEuclideanDistance = self.euclidean_function(pose)
+                if meanDistance - standardDeviation < singleEuclideanDistance < meanDistance + standardDeviation:
+                    remainingParticlesPoses.append(pose)
+            return self.particle_clustering(remainingParticlesPoses)
 
         else:
-            robotEstimatedPose = Pose() #Creates Robot estimated pose
+            robotEstimatedPose = Pose()
 
-            for pose in particlePoses: #For each  of the remaining particles in the particle cloud, calculate the mean point
-                robotEstimatedPose.position.x = robotEstimatedPose.position.x + pose.position.x # This is the new estimated pose in x sum
-                robotEstimatedPose.position.y = robotEstimatedPose.position.y + pose.position.y # New estimated pose in y sum
-                robotEstimatedPose.orientation.w = robotEstimatedPose.orientation.w + pose.orientation.w # New estimated orientation w sum
-                robotEstimatedPose.orientation.z = robotEstimatedPose.orientation.z + pose.orientation.z # New estimated orientation Z sum
+            for pose in particlePoses:
+                robotEstimatedPose.position.x = robotEstimatedPose.position.x + pose.position.x
+                robotEstimatedPose.position.y = robotEstimatedPose.position.y + pose.position.y
+                robotEstimatedPose.orientation.w = robotEstimatedPose.orientation.w + pose.orientation.w
+                robotEstimatedPose.orientation.z = robotEstimatedPose.orientation.z + pose.orientation.z
 
-            robotEstimatedPose.position.x = robotEstimatedPose.position.x/len(particlePoses) #divides the sum (x) by the number of particle remaining to get mean x
-            robotEstimatedPose.position.y = robotEstimatedPose.position.y/len(particlePoses) #divides the sum (y) by the number of particle remaining to get mean y
-            robotEstimatedPose.orientation.w = robotEstimatedPose.orientation.w/len(particlePoses) #divides the sum (w) by the number of particle remaining to get mean w
-            robotEstimatedPose.orientation.z = robotEstimatedPose.orientation.z/len(particlePoses) #divides the sum (Z) by the number of particle remaining to get mean z
+            robotEstimatedPose.position.x = robotEstimatedPose.position.x/len(particlePoses)
+            robotEstimatedPose.position.y = robotEstimatedPose.position.y/len(particlePoses)
+            robotEstimatedPose.orientation.w = robotEstimatedPose.orientation.w/len(particlePoses)
+            robotEstimatedPose.orientation.z = robotEstimatedPose.orientation.z/len(particlePoses)
         
             return robotEstimatedPose
 
@@ -107,18 +98,17 @@ class PFLocaliser(PFLocaliserBase):
         while appendedParticles < cloudPoints:
             myPose = Pose() #creates a pose variable, once per cycle to not cause problem when appending
             random_angle = vonmisesvariate(0,0) # generates a random angle between 0 to 2pi
-            #random_x = randint(0,width-1)# generates a random position around center of map
-            random_x = int(gauss(math.floor(initialpose.pose.pose.position.x/resolution), width/8))
-            #random_y = randint(0,height-1) # generates a random position around center of map
-            random_y = int(gauss(math.floor(initialpose.pose.pose.position.y/resolution), width/8))
+            random_x = randint(0,width-1)# generates a random position around center of map
+            #randox_x = gauss(initialpose.x, width/8)
+            random_y = randint(0,height-1) # generates a random position around center of map
+            #randox_y = gauss(initialpose.y, width/8)
             myPose.position.x = random_x * resolution #Multiplies by the resolution of the map so the correct x position is obtained
             myPose.position.y = random_y * resolution #Multiplies by the resolution of the map so the correct y position is obtained
             myPose.orientation = rotateQuaternion(Quaternion(w=1.0),random_angle) #rotates from default quaternion into new angle
 
-            if random_x < width - 1 and random_y < height - 1:
-                if self.occupancy_map.data[random_x + random_y * width] == 0: # Verifies that the particle is created in a white space
-                    arrayPoses.poses.append(myPose) #Adds the particle to an array.
-                    appendedParticles += 1 #Ready to append the next particle
+            if self.occupancy_map.data[random_x + random_y * width] == 0: # Verifies that the particle is created in a white space
+                arrayPoses.poses.append(myPose) #Adds the particle to an array.
+                appendedParticles += 1 #Ready to append the next particle
 
         # print(appendedParticles)
         return arrayPoses #Returns the array so they are added to the particle cloud
@@ -169,20 +159,20 @@ class PFLocaliser(PFLocaliserBase):
             myPose.orientation = rotateQuaternion(Quaternion(w=1.0),random_angle) #rotates from default quaternion into new angle
 
             if self.occupancy_map.data[random_x + random_y * width] == 0: # Verifies that the particle is created in a white space
-                remainingWeightPoses.poses.append(myPose) #Adds the particle to an array.
-                appendedParticles += 1 #Ready to append the next particle
+                remainingWeightPoses.poses.append(myPose)
+                appendedParticles += 1
             
 
 
 
         """ Resampling of topWeight Particles"""
         # ------ Cumulative Distribution initialization
-        cumulativeDistributionF = [] #Initializes the cumulative distribution array
-        accumulatedWeight = 0 #The initial weight of the particle
+        cumulativeDistributionF = []
+        accumulatedWeight = 0
 
-        for (particle, weight) in heaviestParticles: #Heaviest particle array has particle data, and weight data, this was already sorted before, created this to make new array
-            cumulativeDistributionF.append((particle, accumulatedWeight + weight/weightSum)) # Appends the particle info, and the accumulated weight to create cumulative weight distribution. 
-            accumulatedWeight = accumulatedWeight + weight/weightSum #
+        for (particle, weight) in heaviestParticles:
+            cumulativeDistributionF.append((particle, accumulatedWeight + weight/weightSum))
+            accumulatedWeight = accumulatedWeight + weight/weightSum
         
         threshold = uniform(0,math.pow(len(heaviestParticles),-1))
         cycleNum = 0 # variable for while
