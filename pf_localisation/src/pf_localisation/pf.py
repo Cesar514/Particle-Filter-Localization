@@ -17,7 +17,7 @@ class PFLocaliser(PFLocaliserBase):
     def __init__(self):
 
         # ----- Assigns an initial number of cloud points
-        self.CLOUD_POINTS = 400
+        self.CLOUD_POINTS = 200
         self.TOP_WEIGHT_PERCENTAGE = 0.95
         
         super(PFLocaliser, self).__init__()
@@ -37,8 +37,8 @@ class PFLocaliser(PFLocaliserBase):
 
 
     def euclidean_function(self, particle):
-        euclideanDistance = math.sqrt(math.pow(particle.position.x - self.estimatedpose.pose.pose.position.x, 2) + math.pow(particle.position.y - self.estimatedpose.pose.pose.position.y,2))
-        # euclideanDistance = math.sqrt(math.pow(particle.position.x, 2) + math.pow(particle.position.y,2))
+        #euclideanDistance = math.sqrt(math.pow(particle.position.x - self.estimatedpose.pose.pose.position.x, 2) + math.pow(particle.position.y - self.estimatedpose.pose.pose.position.y,2))
+        euclideanDistance = math.sqrt(math.pow(particle.position.x, 2) + math.pow(particle.position.y,2))
         return euclideanDistance
 
 
@@ -182,7 +182,7 @@ class PFLocaliser(PFLocaliserBase):
 
         for (particle, weight) in heaviestParticles: #Heaviest particle array has particle data, and weight data, this was already sorted before, created this to make new array
             cumulativeDistributionF.append((particle, accumulatedWeight + weight/weightSum)) # Appends the particle info, and the accumulated weight to create cumulative weight distribution. 
-            accumulatedWeight = accumulatedWeight + weight/weightSum #
+            accumulatedWeight = accumulatedWeight + weight/weightSum #Accumulate weights 
         
         threshold = uniform(0,math.pow(len(heaviestParticles),-1))
         cycleNum = 0 # variable for while
