@@ -66,7 +66,7 @@ class PFLocaliser(PFLocaliserBase):
                 singleEuclideanDistance = self.euclidean_function(pose) #sends the particle to get its euclidian distance
                 if meanDistance - standardDeviation < singleEuclideanDistance < meanDistance + standardDeviation: # mean - sigma < mean < mean + sigma #boundary of gaussian 
                     remainingParticlesPoses.append(pose) #appends the particles to the array that fulfill this condition.
-            return self.particle_clustering(remainingParticlesPoses) #recursive array with new particles, until it returns the robotEstimatedPose
+            return self.particle_clustering(remainingParticlesPoses) #recursive array with new particles, until it returns the robotEstimatedPose std < 3
 
         else:
             robotEstimatedPose = Pose() #Creates Robot estimated pose
@@ -110,7 +110,7 @@ class PFLocaliser(PFLocaliserBase):
             #random_x = randint(0,width-1)# generates a random position around center of map
             random_x = int(gauss(math.floor(initialpose.pose.pose.position.x/resolution), width/8))
             #random_y = randint(0,height-1) # generates a random position around center of map
-            random_y = int(gauss(math.floor(initialpose.pose.pose.position.y/resolution), width/8))
+            random_y = int(gauss(math.floor(initialpose.pose.pose.position.y/resolution), height/8))
             myPose.position.x = random_x * resolution #Multiplies by the resolution of the map so the correct x position is obtained
             myPose.position.y = random_y * resolution #Multiplies by the resolution of the map so the correct y position is obtained
             myPose.orientation = rotateQuaternion(Quaternion(w=1.0),random_angle) #rotates from default quaternion into new angle
@@ -184,29 +184,29 @@ class PFLocaliser(PFLocaliserBase):
             cumulativeDistributionF.append((particle, accumulatedWeight + weight/weightSum)) # Appends the particle info, and the accumulated weight to create cumulative weight distribution. 
             accumulatedWeight = accumulatedWeight + weight/weightSum #Accumulate weights 
         
-        threshold = uniform(0,math.pow(len(heaviestParticles),-1))
+        threshold = uniform(0,math.pow(len(heaviestParticles),-1)) #Creates uniform distribution for the threshold to update particles
         cycleNum = 0 # variable for while
-        arrayPoses = PoseArray()
+        arrayPoses = PoseArray() #creates an array of poses to store poses
 
-        for points in range(0, len(heaviestParticles)):
+        for points in range(0, len(heaviestParticles)): #starts updating threshold and storing positions  of heaviest particles
             while threshold > cumulativeDistributionF[cycleNum][1]:
-                cycleNum += 1
+                cycleNum += 1 
             
-            myPose = Pose()
-            myPose.position.x = cumulativeDistributionF[cycleNum][0].position.x + gauss(0,self.ODOM_TRANSLATION_NOISE )
-            myPose.position.y = cumulativeDistributionF[cycleNum][0].position.y + gauss(0,self.ODOM_DRIFT_NOISE )
+            myPose = Pose() #stores the new pose
+            myPose.position.x = cumulativeDistributionF[cycleNum][0].position.x + gauss(0,self.ODOM_TRANSLATION_NOISE ) #stores position x
+            myPose.position.y = cumulativeDistributionF[cycleNum][0].position.y + gauss(0,self.ODOM_DRIFT_NOISE ) #stores position y
             myPose.orientation = rotateQuaternion(Quaternion(w=1.0), getHeading(cumulativeDistributionF[cycleNum][0].orientation) + 
-                            gauss(0, self.ODOM_ROTATION_NOISE))
+                            gauss(0, self.ODOM_ROTATION_NOISE)) #stores orientation
 
-            arrayPoses.poses.append(myPose)
-            threshold = threshold + math.pow(len(heaviestParticles),-1)
+            arrayPoses.poses.append(myPose) #appends the pose
+            threshold = threshold + math.pow(len(heaviestParticles),-1) #continues updating the threshold
 
 
-        modifiedPosesArray = arrayPoses
+        modifiedPosesArray = arrayPoses #stores the array in the modified array
         modifiedPosesArray.poses = modifiedPosesArray.poses + remainingWeightPoses.poses #combines both array poses
 
 
-        self.particlecloud = modifiedPosesArray
+        self.particlecloud = modifiedPosesArray #updates particle cloud
 
 
     def estimate_pose(self):
@@ -226,6 +226,6 @@ class PFLocaliser(PFLocaliserBase):
             | (geometry_msgs.msg.Pose) robot's estimated pose.
          """
 
-        robotEstimatedPose  = self.particle_clustering(self.particlecloud.poses)
+        robotEstimatedPose  = self.particle_clustering(self.particlecloud.poses) #calls function that "clusters particles" with means and standard distribution
 
-        return robotEstimatedPose
+        return robotEstimatedPose #returns the new estimated pose
