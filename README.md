@@ -1,5 +1,6 @@
 # Particle Filter Based Localization
  
+In the case of robotics and artificial intelligence, the first and most important task is to determine where the mobile robot is, in other words, is the ‘Localization’. There are several methods for mobile robot localization, such as Kalman filter, Grid-based Markov Localization, and the Monte Carlo Localization (Particle filter).
 
 ![Particle Filter](https://raw.githubusercontent.com/Cesar514/Kalman-Cart-Prediction/main/final_project/map1.png)
 
